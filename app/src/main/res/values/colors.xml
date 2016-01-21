@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- StatusBar colors -->
+    <color name="colorPrimary">#3F51B5</color>
+    <color name="colorPrimaryDark">#303F9F</color>
+    <color name="colorAccent">#FF4081</color>
+
+    <!-- Circle colors -->
+    <color name="circle1Color">#6ABB3F</color>
+    <color name="circle2Color">#1C833A</color>
+    <color name="circle3Color">#B8DF9D</color>
+
+</resources>

@@ -1,0 +1,17 @@
+<resources>
+
+    <declare-styleable name="PieChart">
+        <attr name="circle1InitialAngle" format="float|reference"/>
+        <attr name="circle1EndAngle" format="float|reference"/>
+        <attr name="circle1Color" format="color|reference"/>
+
+        <attr name="circle2InitialAngle" format="float|reference"/>
+        <attr name="circle2EndAngle" format="float|reference"/>
+        <attr name="circle2Color" format="color|reference"/>
+
+        <attr name="circle3InitialAngle" format="float|reference"/>
+        <attr name="circle3EndAngle" format="float|reference"/>
+        <attr name="circle3Color" format="color|reference"/>
+    </declare-styleable>
+
+</resources>

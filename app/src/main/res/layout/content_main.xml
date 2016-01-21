@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    app:layout_behavior="@string/appbar_scrolling_view_behavior"
+    tools:context=".activities.MainActivity"
+    tools:showIn="@layout/activity_main">
+
+    <com.mobile.piechart.views.PieChart
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:circle1InitialAngle="-90"
+        app:circle1EndAngle="270"
+        app:circle1Color="@color/circle1Color"
+        app:circle2InitialAngle="-270"
+        app:circle2EndAngle="-225"
+        app:circle2Color="@color/circle2Color"
+        app:circle3InitialAngle="0"
+        app:circle3EndAngle="180"
+        app:circle3Color="@color/circle3Color"
+        android:layout_gravity="center"
+        android:padding="@dimen/base_margin"/>
+
+</FrameLayout>
