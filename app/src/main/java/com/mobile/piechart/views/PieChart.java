@@ -21,6 +21,7 @@ import com.mobile.piechart.R;
  * calculated in the onLayout phase and drawed in the onDraw callback
  */
 public class PieChart extends View {
+
     private enum CIRCLE {
         CIRCLE1,
         CIRCLE2,
