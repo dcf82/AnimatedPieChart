@@ -27,19 +27,20 @@ import com.mobile.piechart.R;
  * file and granted by the user, it will vibrate for each minute you add/remove from the selector
  */
 public class DialView extends View {
-    private static final String LOG = "DialView";
     private static final int MINUTES_PER_HOUR = 60;
     private static final int MIN_ANGLE_REQUIRED = -90;
+    private static final int MAX_ANGLE_REQUIRED = 8550;
     private static final int DEFAULT_ALPHA_VALUE = 255;
     private static final int DEFAULT_COLOR = Color.BLACK;
     private static final int INVALID_PROGRESS_VALUE = -1;
     private static final int MINUTE_VALUE_TO_DEGREES_STEP_SIZE = 6;
-
     private static float BASE_STROKE_WIDTH_PERCENTAGE = 0.01f;
 
     private Paint mPaint;
 
+    private float mTextSize;
     private float mBaseSize;
+    private float mStrokeWidth;
 
     private int mLineColorStrong = DEFAULT_COLOR;
     private int mLineColorLight = DEFAULT_COLOR;
@@ -110,7 +111,6 @@ public class DialView extends View {
         mPaint.setAntiAlias(true);
         mPaint.setStyle(Paint.Style.FILL_AND_STROKE);
         mPaint.setTextAlign(Paint.Align.CENTER);
-        mPaint.setTextSize(30);
 
         mRectBase = new RectF();
 
@@ -134,41 +134,47 @@ public class DialView extends View {
         Point point1;
         Point point2;
         int index = 0;
-        float baseStrokeWidth = BASE_STROKE_WIDTH_PERCENTAGE * mBaseSize;
 
         // Draw Texts & Lines for Minutes
         for (int i = 1; i <= MINUTES_PER_HOUR; i++) {
 
-            if ((i % 15) == 0) {
+            if (i % 5 == 0) {
+                if (i % 15 == 0) {
+                    // Get coordinates for the quadrants (every 15 minutes)
+                    point1 = buildCoordinateXY(mMinutesRadio, centerX, centerY,
+                            MINUTE_VALUE_TO_DEGREES_STEP_SIZE * i);
 
-                point1 = buildCoordinateXY(mMinutesRadio, centerX, centerY,
-                        MINUTE_VALUE_TO_DEGREES_STEP_SIZE * i);
+                    // Draw quadrant time (every 15 minutes)
+                    mPaint.setStrokeWidth(0.1f * mStrokeWidth);
+                    mPaint.setTextSize(mTextSize);
+                    mPaint.setColor(Color.argb(DEFAULT_ALPHA_VALUE, 138, 138, 138));
+                    canvas.drawText(Integer.toString(minutes[index++]), point1.x, point1.y +
+                            mStrokeWidth, mPaint);
+                }
 
-                // Draw Time
-                mPaint.setStrokeWidth(0.1f * baseStrokeWidth);
-                mPaint.setColor(Color.argb(DEFAULT_ALPHA_VALUE, 138, 138, 138));
-                canvas.drawText(Integer.toString(minutes[index++]), point1.x, point1.y, mPaint);
-
+                // Get coordinates for every 5 minutes
                 point1 = buildCoordinateXY(mCircle1Radio, centerX, centerY,
                         MINUTE_VALUE_TO_DEGREES_STEP_SIZE * i);
 
-                // Draw Line
-                mPaint.setStrokeWidth(baseStrokeWidth);
+                // Draw bold line for every 5 minutes
+                mPaint.setStrokeWidth(mStrokeWidth);
                 mPaint.setColor(mLineColorStrong);
             } else {
-
+                // Get coordinates for every 1 minute
                 point1 = buildCoordinateXY(mCircle1Radio, centerX, centerY,
                         MINUTE_VALUE_TO_DEGREES_STEP_SIZE * i);
 
-                // Draw Line
-                mPaint.setStrokeWidth(0.8f * baseStrokeWidth);
+                // Draw normal line for every 1 minute
+                mPaint.setStrokeWidth(0.8f * mStrokeWidth);
                 mPaint.setColor(mLineColorLight);
             }
+
+            // Draw the line
             canvas.drawLine(centerX, centerY, point1.x, point1.y, mPaint);
         }
 
         // Draw Circle 2
-        mPaint.setStrokeWidth(baseStrokeWidth);
+        mPaint.setStrokeWidth(mStrokeWidth);
         mPaint.setColor(Color.WHITE);
         canvas.drawCircle(centerX, centerY, mCircle2Radio, mPaint);
 
@@ -300,14 +306,20 @@ public class DialView extends View {
 
         LayerDrawable layerDrawable = (LayerDrawable) getResources().getDrawable(R.drawable.dial_background);
         mDialBitmap = Bitmap.createBitmap(getWidth(), getHeight(), Bitmap.Config.ARGB_8888);
-        layerDrawable.setBounds(0, 0, (int) mRectBase.width(), (int) mRectBase.height());
-        layerDrawable.draw(new Canvas(mDialBitmap));
+        if (layerDrawable != null) {
+            layerDrawable.setBounds(0, 0, (int) mRectBase.width(), (int) mRectBase.height());
+            layerDrawable.draw(new Canvas(mDialBitmap));
+        }
+
 
         // Calculate the center of the view
         centerX = getWidth() / 2f;
         centerY = getHeight() / 2f;
 
         setTouchInSide();
+
+        mStrokeWidth = padding;
+        mTextSize = 4 * padding;
     }
 
     @Override
@@ -343,6 +355,8 @@ public class DialView extends View {
                     mCurrentAngle += mDiff;
                     if (mCurrentAngle < MIN_ANGLE_REQUIRED) {
                         mCurrentAngle = MIN_ANGLE_REQUIRED;
+                    }else if(mCurrentAngle > MAX_ANGLE_REQUIRED){
+                        mCurrentAngle = MAX_ANGLE_REQUIRED;
                     } else if (mVibrator != null && mVibrator.hasVibrator()) {
                         mVibrator2 = mCurrentAngle / MINUTE_VALUE_TO_DEGREES_STEP_SIZE;
                         if (mVibrator1 != mVibrator2) {
@@ -384,8 +398,7 @@ public class DialView extends View {
         if (ignoreTouch) return INVALID_PROGRESS_VALUE;
         setPressed(true);
         mTouchAngle = getTouchDegrees(event.getX(), event.getY());
-        int progress = getProgressForAngle(mTouchAngle);
-        return progress;
+        return getProgressForAngle(mTouchAngle);
     }
 
     private boolean isIn1stQuadrant(double angle) {
@@ -457,7 +470,7 @@ public class DialView extends View {
         return currentTime / 10 - 90;
     }
 
-    public OnDialViewChangeListener getOnDialViewChangeListener() {
+    public OnDialViewChangeListener getOnDialViewChangeListener(OnDialViewChangeListener onDialViewChangeListener) {
         return mOnDialViewChangeListener;
     }
 
