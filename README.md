@@ -3,7 +3,7 @@
 - Also adds a Custom Dialer which can be used as a Time Selector.
 
 # Animated Pie Graph
-![](https://github.com/dcf82/TheNewYorkTimes/blob/master/animation.png)
+![](https://github.com/dcf82/AnimatedPieChart/blob/master/animation.png)
 
 # Custom Timer Selector
-![](https://github.com/dcf82/TheNewYorkTimes/blob/master/dialer.png)
+![](https://github.com/dcf82/AnimatedPieChart/blob/master/dialer.png)
