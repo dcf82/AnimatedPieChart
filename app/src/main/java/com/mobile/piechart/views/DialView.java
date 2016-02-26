@@ -4,14 +4,18 @@ import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.RectF;
-import android.graphics.drawable.LayerDrawable;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Vibrator;
 import android.support.v4.content.ContextCompat;
 import android.util.AttributeSet;
+import android.util.TypedValue;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -28,31 +32,24 @@ import com.mobile.piechart.R;
  */
 public class DialView extends View {
     private static final int MINUTES_PER_HOUR = 60;
+    private static final int DEFAULT_TEXT_SIZE = 20;
     private static final int MIN_ANGLE_REQUIRED = -90;
     private static final int MAX_ANGLE_REQUIRED = 8550;
     private static final int DEFAULT_ALPHA_VALUE = 255;
-    private static final int DEFAULT_COLOR = Color.BLACK;
     private static final int INVALID_PROGRESS_VALUE = -1;
     private static final int MINUTE_VALUE_TO_DEGREES_STEP_SIZE = 6;
-    private static float BASE_STROKE_WIDTH_PERCENTAGE = 0.01f;
+    private static final float BASE_STROKE_WIDTH_PERCENTAGE = 0.01f;
 
     private Paint mPaint;
 
     private float mTextSize;
     private float mBaseSize;
-    private float mStrokeWidth;
-
-    private int mLineColorStrong = DEFAULT_COLOR;
-    private int mLineColorLight = DEFAULT_COLOR;
-    private int mLineColorBlue = DEFAULT_COLOR;
 
     private float centerX;
     private float centerY;
 
     private float mMinutesRadio;
-    private float mCircle1Radio;
-    private float mCircle2Radio;
-    private float mCircle3Radio;
+    private float mRadioKnob;
 
     private final int[] minutes = {30, 45, 60, 15};
 
@@ -61,20 +58,22 @@ public class DialView extends View {
     private long mVibrator1;
     private long mVibrator2;
 
-    private boolean mVibratorPermissionEnabled;
-
     private float mTouchIgnoreRadius;
     private double mTouchAngle;
 
-    private RectF mRectBase;
-
+    private int mTextColor;
     private int mAngle1;
     private int mAngle2;
     private int mAngle;
     private int mDiff;
 
-    private OnDialViewChangeListener mOnDialViewChangeListener;
+    private Drawable mLinesImage;
+    private Drawable mOvalImage;
+    private Drawable mKnobImage;
+
     private Vibrator mVibrator;
+    private boolean mVibratorPermissionEnabled;
+    private OnDialViewChangeListener mOnDialViewChangeListener;
 
     public interface OnDialViewChangeListener {
 
@@ -86,7 +85,7 @@ public class DialView extends View {
          * @param progress
          *            The current progress time. This will be reported in seconds
          */
-        void onProgressChanged(DialView dialView, long progress);
+        void onProgressChanged(DialView dialView, long progress, boolean changed);
 
     }
 
@@ -106,17 +105,16 @@ public class DialView extends View {
     }
 
     private void init(AttributeSet attrs, int defStyle) {
+        mTextSize = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, DEFAULT_TEXT_SIZE,
+                getResources().getDisplayMetrics());
+        mTextColor = Color.argb(DEFAULT_ALPHA_VALUE, 138, 138, 138);
 
         mPaint = new Paint();
         mPaint.setAntiAlias(true);
         mPaint.setStyle(Paint.Style.FILL_AND_STROKE);
         mPaint.setTextAlign(Paint.Align.CENTER);
-
-        mRectBase = new RectF();
-
-        mLineColorStrong = Color.argb(DEFAULT_ALPHA_VALUE, 164, 164, 164);
-        mLineColorLight = Color.argb(DEFAULT_ALPHA_VALUE, 187, 187, 187);
-        mLineColorBlue = Color.argb(DEFAULT_ALPHA_VALUE, 21, 133, 216);
+        mPaint.setTextSize(mTextSize);
+        mPaint.setColor(mTextColor);
 
         int permissionCheck = ContextCompat.checkSelfPermission(getContext(),
                 Manifest.permission.VIBRATE);
@@ -125,70 +123,42 @@ public class DialView extends View {
             mVibrator = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
         }
     }
-    private Bitmap mDialBitmap;
 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        Point point1;
-        Point point2;
+        Point point;
         int index = 0;
 
-        // Draw Texts & Lines for Minutes
+        // Draw Texts for Minutes
         for (int i = 1; i <= MINUTES_PER_HOUR; i++) {
-
-            if (i % 5 == 0) {
-                if (i % 15 == 0) {
-                    // Get coordinates for the quadrants (every 15 minutes)
-                    point1 = buildCoordinateXY(mMinutesRadio, centerX, centerY,
-                            MINUTE_VALUE_TO_DEGREES_STEP_SIZE * i);
-
-                    // Draw quadrant time (every 15 minutes)
-                    mPaint.setStrokeWidth(0.1f * mStrokeWidth);
-                    mPaint.setTextSize(mTextSize);
-                    mPaint.setColor(Color.argb(DEFAULT_ALPHA_VALUE, 138, 138, 138));
-                    canvas.drawText(Integer.toString(minutes[index++]), point1.x, point1.y +
-                            mStrokeWidth, mPaint);
-                }
-
-                // Get coordinates for every 5 minutes
-                point1 = buildCoordinateXY(mCircle1Radio, centerX, centerY,
+            if (i % 15 == 0) {
+                // Get coordinates for the quadrants (every 15 minutes)
+                point = buildCoordinateXY(mMinutesRadio, centerX, centerY,
                         MINUTE_VALUE_TO_DEGREES_STEP_SIZE * i);
-
-                // Draw bold line for every 5 minutes
-                mPaint.setStrokeWidth(mStrokeWidth);
-                mPaint.setColor(mLineColorStrong);
-            } else {
-                // Get coordinates for every 1 minute
-                point1 = buildCoordinateXY(mCircle1Radio, centerX, centerY,
-                        MINUTE_VALUE_TO_DEGREES_STEP_SIZE * i);
-
-                // Draw normal line for every 1 minute
-                mPaint.setStrokeWidth(0.8f * mStrokeWidth);
-                mPaint.setColor(mLineColorLight);
+                // Draw quadrant time (every 15 minutes)
+                canvas.drawText(Integer.toString(minutes[index++]), point.x, point.y +
+                        mTextSize / 3, mPaint);
             }
-
-            // Draw the line
-            canvas.drawLine(centerX, centerY, point1.x, point1.y, mPaint);
         }
 
-        // Draw Circle 2
-        mPaint.setStrokeWidth(mStrokeWidth);
-        mPaint.setColor(Color.WHITE);
-        canvas.drawCircle(centerX, centerY, mCircle2Radio, mPaint);
+        // Draw Lines Image
+        mLinesImage.draw(canvas);
 
-        // Draw Dialer
-        canvas.drawBitmap(mDialBitmap, mRectBase.left, mRectBase.top, null);
+        // Draw Oval Image
+        mOvalImage.draw(canvas);
 
-        // Draw Minutes Indicator
-        mPaint.setColor(mLineColorBlue);
-        point1 = buildCoordinateXY(0.85f * mCircle3Radio, centerX, centerY, (mCurrentAngle /
-                MINUTE_VALUE_TO_DEGREES_STEP_SIZE) * MINUTE_VALUE_TO_DEGREES_STEP_SIZE);
-        point2 = buildCoordinateXY(0.95f * mCircle3Radio, centerX, centerY, (mCurrentAngle /
-                MINUTE_VALUE_TO_DEGREES_STEP_SIZE) * MINUTE_VALUE_TO_DEGREES_STEP_SIZE);
-        canvas.drawLine(point1.x, point1.y, point2.x, point2.y, mPaint);
+        // Draw Minutes Indicator Image
+        canvas.save();
+        canvas.rotate(normalizeCurrentAngle(), centerX, centerY);
+        mKnobImage.draw(canvas);
+        canvas.restore();
+    }
 
+    protected long normalizeCurrentAngle() {
+        return (mCurrentAngle / MINUTE_VALUE_TO_DEGREES_STEP_SIZE) *
+                MINUTE_VALUE_TO_DEGREES_STEP_SIZE;
     }
 
     // Measure the custom view to the specified size
@@ -272,8 +242,9 @@ public class DialView extends View {
             mBottom = contentHeight - padding / 2f;
         }
 
-        // Measure & Position Minutes Rectangle
-        RectF rectMinutes= new RectF();
+        // Measure & Position Minutes Text Area
+        RectF rect = new RectF();
+        RectF rectMinutes = new RectF();
         rectMinutes.left = mLeft + paddingLeft;
         rectMinutes.top = mTop + paddingTop;
         rectMinutes.right = mRight + paddingRight;
@@ -281,45 +252,78 @@ public class DialView extends View {
 
         mMinutesRadio = Math.min(rectMinutes.width() / 2f, rectMinutes.height() / 2f);
 
-        // Measure & Position Circle 1
-        mRectBase.left = rectMinutes.left + 4f * padding;
-        mRectBase.top = rectMinutes.top + 4f * padding;
-        mRectBase.right = rectMinutes.right - 4f * padding;
-        mRectBase.bottom = rectMinutes.bottom - 4f * padding;
+        // Measure & Position Lines Image
+        rectMinutes.left += mTextSize;
+        rectMinutes.top += mTextSize;
+        rectMinutes.right -= mTextSize;
+        rectMinutes.bottom -= mTextSize;
 
-        mCircle1Radio = Math.min(mRectBase.width() / 2f, mRectBase.height() / 2f);
+        // Getting Lines Image
+        mLinesImage = getImageResized(R.drawable.lines, rectMinutes.width(), rectMinutes.height());
+        mLinesImage.setBounds((int)rectMinutes.left, (int) rectMinutes.top,
+                (int) rectMinutes.right, (int) rectMinutes.bottom);
 
-        // Measure & Position Circle 2
-        mRectBase.left = rectMinutes.left + 8 * padding;
-        mRectBase.top = rectMinutes.top + 8 * padding;
-        mRectBase.right = rectMinutes.right - 8 * padding;
-        mRectBase.bottom = rectMinutes.bottom - 8 * padding;
+        // Measure & Position Oval Image
+        rect.left = rectMinutes.left + 6f * padding;
+        rect.top = rectMinutes.top + 6f * padding;
+        rect.right = rectMinutes.right - 0f * padding;
+        rect.bottom = rectMinutes.bottom - 0f * padding;
 
-        mCircle2Radio = Math.min(mRectBase.width() / 2f, mRectBase.height() / 2f);
+        // Getting Oval Image
+        mOvalImage = getImageResized(R.drawable.oval, rect.width(), rect.height());
+        mOvalImage.setBounds((int) rect.left, (int) rect.top,
+                (int) rect.right, (int) rect.bottom);
 
-        mRectBase.left = rectMinutes.left + 10 * padding;
-        mRectBase.top = rectMinutes.top + 10 * padding;
-        mRectBase.right = rectMinutes.right - 10 * padding;
-        mRectBase.bottom = rectMinutes.bottom - 10 * padding;
+        // Measure & Position Knob Image
+        rect.left = rectMinutes.left + 5f * padding;
+        rect.top = rectMinutes.top + 5f * padding;
+        rect.right = rectMinutes.right - 5f * padding;
+        rect.bottom = rectMinutes.bottom - 5f * padding;
 
-        mCircle3Radio = Math.min(mRectBase.width() / 2f, mRectBase.height() / 2f);
+        mRadioKnob = Math.min(rect.width() / 2f, rect.height() / 2f);
 
-        LayerDrawable layerDrawable = (LayerDrawable) getResources().getDrawable(R.drawable.dial_background);
-        mDialBitmap = Bitmap.createBitmap(getWidth(), getHeight(), Bitmap.Config.ARGB_8888);
-        if (layerDrawable != null) {
-            layerDrawable.setBounds(0, 0, (int) mRectBase.width(), (int) mRectBase.height());
-            layerDrawable.draw(new Canvas(mDialBitmap));
-        }
-
+        // Getting Knob Image
+        mKnobImage = getImageResized(R.drawable.knob, rect.width(), rect.height());
+        mKnobImage.setBounds((int) rect.left, (int) rect.top,
+                (int) rect.right, (int) rect.bottom);
 
         // Calculate the center of the view
         centerX = getWidth() / 2f;
         centerY = getHeight() / 2f;
 
         setTouchInSide();
+    }
 
-        mStrokeWidth = padding;
-        mTextSize = 4 * padding;
+    /**
+     * simply re-sizes a given drawable resource to the given width and height */
+    private Drawable getImageResized(int resId, float newWidth, float newHeight) {
+
+        // Load the original Bitmap
+        Bitmap BitmapOrg = BitmapFactory.decodeResource(getResources(), resId);
+
+        int width = BitmapOrg.getWidth();
+        int height = BitmapOrg.getHeight();
+
+        // calculate the scale
+        float scaleWidth = newWidth / width;
+        float scaleHeight = newHeight / height;
+
+        // create a matrix for the manipulation
+        Matrix matrix = new Matrix();
+
+        // resize the Bitmap
+        matrix.postScale(scaleWidth, scaleHeight);
+
+        // if you want to rotate the Bitmap
+        // matrix.postRotate(45);
+
+        // recreate the new Bitmap
+        Bitmap resizedBitmap = Bitmap.createBitmap(BitmapOrg, 0, 0, width, height, matrix, true);
+
+        // make a Drawable from Bitmap to allow to set the Bitmap
+        // to the ImageView, ImageButton or what ever
+        return new BitmapDrawable(resizedBitmap);
+
     }
 
     @Override
@@ -339,6 +343,7 @@ public class DialView extends View {
 
             case MotionEvent.ACTION_MOVE: {
                 mAngle = updateOnTouch(event);
+                boolean changed = false;
                 if (mAngle != INVALID_PROGRESS_VALUE) {
                     mAngle2 = mAngle;
 
@@ -355,14 +360,22 @@ public class DialView extends View {
                     mCurrentAngle += mDiff;
                     if (mCurrentAngle < MIN_ANGLE_REQUIRED) {
                         mCurrentAngle = MIN_ANGLE_REQUIRED;
-                    }else if(mCurrentAngle > MAX_ANGLE_REQUIRED){
+                    } else if(mCurrentAngle > MAX_ANGLE_REQUIRED) {
                         mCurrentAngle = MAX_ANGLE_REQUIRED;
-                    } else if (mVibrator != null && mVibrator.hasVibrator()) {
-                        mVibrator2 = mCurrentAngle / MINUTE_VALUE_TO_DEGREES_STEP_SIZE;
-                        if (mVibrator1 != mVibrator2) {
+                    }
+
+                    mVibrator2 = mCurrentAngle / MINUTE_VALUE_TO_DEGREES_STEP_SIZE;
+                    if (mVibrator1 != mVibrator2) {
+                        // The angle changed
+                        changed = true;
+
+                        // Play the device vibrator
+                        if (mVibrator != null && mVibrator.hasVibrator()) {
                             mVibrator.vibrate(50);
-                            mVibrator1 = mVibrator2;
                         }
+
+                        // Store last state
+                        mVibrator1 = mVibrator2;
                     }
 
                     // Calculate current time in seconds
@@ -371,9 +384,11 @@ public class DialView extends View {
                     // Update UI
                     invalidate();
 
-                    // Update time to the Client App
+                    // Update time to the client
+                    // Note: This call MUST be fast to avoid affecting the performance of the
+                    // entire component
                     if (mOnDialViewChangeListener != null) {
-                        mOnDialViewChangeListener.onProgressChanged(this, mCurrentTime);
+                        mOnDialViewChangeListener.onProgressChanged(this, mCurrentTime, changed);
                     }
                 }
             }
@@ -384,6 +399,7 @@ public class DialView extends View {
             {
                 setPressed(false);
                 getParent().requestDisallowInterceptTouchEvent(false);
+                // Turn off vibrator
                 if (mVibrator != null && mVibrator.hasVibrator()) {
                     mVibrator.cancel();
                 }
@@ -433,7 +449,7 @@ public class DialView extends View {
     }
 
     public void setTouchInSide() {
-        mTouchIgnoreRadius = mCircle3Radio / 4;
+        mTouchIgnoreRadius = mRadioKnob / 4;
     }
 
     private double getTouchDegrees(float xPos, float yPos) {
@@ -448,34 +464,31 @@ public class DialView extends View {
         return angle;
     }
 
-    public long getCurrentTime() {
-        return mCurrentTime;
+    public static class Point {
+        float x;
+        float y;
     }
 
-    public void setCurrentTime(long currentTime) {
-        this.mCurrentTime = currentTime;
-        this.mCurrentAngle = calculateCurrentAngle(currentTime);
-        this.invalidate();
+    public long getCurrentTime() {
+        return mCurrentTime;
     }
 
     public long getCurrentAngle() {
         return mCurrentAngle;
     }
 
+    public void setCurrentTime(long currentTime) {
+        mCurrentTime = currentTime;
+        mCurrentAngle = normalizeCurrentAngle(currentTime);
+        invalidate();
+    }
+
     private long calculateCurrentTime() {
-        return 10 * (mCurrentAngle + 90);
+        return 10 * (normalizeCurrentAngle() + 90);
     }
 
-    private long calculateCurrentAngle(long currentTime) {
+    private long normalizeCurrentAngle(long currentTime) {
         return currentTime / 10 - 90;
-    }
-
-    public OnDialViewChangeListener getOnDialViewChangeListener(OnDialViewChangeListener onDialViewChangeListener) {
-        return mOnDialViewChangeListener;
-    }
-
-    public void setOnDialViewChangeListener(OnDialViewChangeListener dialViewChangeListener) {
-        this.mOnDialViewChangeListener = dialViewChangeListener;
     }
 
     private Point buildCoordinateXY(float radio, float centerX, float centerY, float
@@ -486,9 +499,7 @@ public class DialView extends View {
         return point;
     }
 
-    public static class Point {
-        float x;
-        float y;
+    public void setOnDialViewChangeListener(OnDialViewChangeListener dialViewChangeListener) {
+        mOnDialViewChangeListener = dialViewChangeListener;
     }
-
 }
